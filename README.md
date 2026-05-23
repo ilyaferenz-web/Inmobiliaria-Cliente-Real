@@ -1,68 +1,71 @@
-# BuildHub — Proyecto de Gestión de Edificios
+BuildHub — Gestión de Edificios
 
-Resumen rápido
-- Aplicación de escritorio con Electron + Vite + React para gestionar edificios y facturas (PDFs).
-- Base de datos SQLite: `edificios.db` (contiene `buildings`, `years`, `months`, `invoices`, etc.).
-- Script Python `edificioprime.py` para escanear carpetas locales y sembrar facturas en la DB.
+App de escritorio hecha con Electron + React para administrar edificios y facturas PDF.
 
-Qué pasarle a tu amigo
-- La carpeta del proyecto completa (todo el repo). No es necesario enviar `node_modules` — que instale dependencias con `npm install`.
-- El archivo de base de datos `edificios.db` (si quieres que tenga los mismos datos). Si no, indica que cree una base vacía o modifique el schema.
-- El contenido de `config.json` (incluido) — sirve para indicar la ruta de la DB y la carpeta `storage`.
+Qué necesita instalar
+Node.js 16 o superior
+npm
+Python 3.8+ (solo si va a usar el script de importación)
+
+Node.js
+
+Qué tenés que pasarle
+La carpeta completa del proyecto
+edificios.db (si querés que tenga todos los datos)
+config.json
+
+No hace falta mandar node_modules.
 
 Archivos importantes
-- `main.js` — proceso principal de Electron (abre ventana, expone handlers IPC y conecta a la BD). Edita `config.json` para cambiar la ruta de la BD.
-- `preload.js` — puente seguro entre renderer y main (exposición de `window.api`).
-- `src/GestionEdificios.jsx` — UI principal en React (gestión de edificios y facturas).
-- `edificioprime.py` — script para detectar PDFs en carpetas por año y crear entradas en `invoices`.
-- `config.json` — configuración portable (ruta a DB y carpeta `storage`).
+main.js → proceso principal de Electron y conexión SQLite
+preload.js → comunicación segura entre frontend y backend
+src/GestionEdificios.jsx → interfaz principal
+edificioprime.py → importa PDFs automáticamente
+config.json → rutas de base de datos y storage
+Instalación
 
-Prerequisitos (Windows)
-1. Node.js (16+ recomendado) — https://nodejs.org/
-2. npm (viene con Node.js)
-3. Python 3.8+ (opcional, para `edificioprime.py`)
+Desde la raíz del proyecto:
 
-Instalación y primer arranque
-1. Poner `edificios.db` en la raíz del proyecto o ajustar `config.json` `dbPath` al lugar donde esté la BD.
-2. Desde la raíz del proyecto ejecutar:
-```powershell
 npm install
-```
-3. Para arrancar en modo desarrollo (Vite + Electron):
-```powershell
+Ejecutar en desarrollo
 npm run dev:electron
-```
-4. Para construir la app y ejecutar la versión empaquetada:
-```powershell
+Build de producción
 npm run build
 npm start
-```
+Base de datos
 
-Configurar la base de datos para tu amigo
-- Si le vas a pasar la BD: copia `edificios.db` junto al proyecto (o indicá la ruta absoluta en `config.json`).
-- Si no le pasás la BD: puede crear una DB vacía con el schema necesario (puedo exportarte un SQL para crear las tablas si querés).
+Si le pasás edificios.db, dejarlo en la raíz del proyecto.
 
-Script de importación (`edificioprime.py`)
-- Edita `ROOT_PATH` dentro del script (o mueve los archivos de facturas a una estructura con la misma ruta) para que el script encuentre las carpetas de años/edificios.
-- Ejecutar (desde la raíz del proyecto):
-```powershell
-# (opcional) crear venv
+Si no, hay que crear una base nueva con el schema correspondiente.
+
+La ruta de la DB se configura en:
+
+config.json
+Script de importación (edificioprime.py)
+
+Escanea carpetas con PDFs y crea registros en SQLite.
+
+Antes de usarlo:
+
+configurar ROOT_PATH
+verificar dbPath en config.json
+
+Ejecutar:
+
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python edificioprime.py
-```
-- El script ahora lee la ruta de la BD desde `config.json` (clave `dbPath`).
+Cosas pendientes / mejoras
+copiar PDFs automáticamente a storage/
+validaciones y manejo de errores
+script schema.sql
+loaders y mensajes más claros
+Para enviarlo
 
-Consejos para continuar el desarrollo
-- Implementar copia de PDFs a `storage/` al agregarlos desde la UI (`agregarFactura`) para evitar enlaces rotos.
-- Añadir validaciones y manejo de errores en el frontend (mensajes claros, loaders al copiar archivos grandes).
-- Añadir pruebas básicas y un script para inicializar la BD (`schema.sql`).
+Comprimir el proyecto SIN:
 
-Empaquetado para enviar
-- Comprimir la carpeta del proyecto (sin `node_modules`) y adjuntar `edificios.db` si corresponde.
-- Incluir las instrucciones anteriores (README) y confirmar que `config.json` apunta a la BD correcta.
+node_modules
 
-Si quieres, puedo:
-- Generar el `schema.sql` con las tablas actuales.
-- Implementar la copia automática de PDFs a `storage/` y cambiar `agregarFactura` para usar la copia.
-- Crear un ZIP listo para enviar (si me das permiso para run esos comandos aquí).
+y mandar junto con:
+
+edificios.db
