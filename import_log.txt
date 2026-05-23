@@ -1,0 +1,332 @@
+Fuente: c:\Users\ilyaf\OneDrive\Desktop\2025 CERTIFICACIONES 15-10
+Destino DB: c:\Users\ilyaf\OneDrive\Desktop\ProyectoPalo\edificios.db
+Copia archivos a: c:\Users\ilyaf\OneDrive\Desktop\ProyectoPalo\facturas_guardadas
+---
+
+🏢 Edificio: 11 de Septiembre 3966 -> id 109
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: 3 de febrero 4874 -> id 110
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Acosta Mariano 1955 -1 -> id 111
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Alvear Marcelo T 662 -> id 112
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Ambrosetti 551 -> id 113
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Amenabar 1655 -> id 114
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Anchorena 1338 -> id 115
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Anchorena 1350 -> id 116
+  📅 Año: 2024
+  📅 Año: 2025
+  ⚠️  Ignorando carpeta año no válido: Anchorena 1350
+  ⚠️  Ignorando carpeta año no válido: Polizas
+  ⚠️  Ignorando carpeta año no válido: Rats
+🏢 Edificio: Aranguren 79 -> id 117
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Arcos 2057 -> id 118
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Arenales 2303 -> id 119
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Avalos 1239 -> id 120
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Azurduy Juana 2304 -> id 121
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Bartolome Mitre 2264 -> id 122
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Bartolome Mitre 2280 -> id 123
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Bernardo de Irigoyen 1306 -> id 124
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Bernardo de Irigoyen 630 -> id 125
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Borges Jorge L 2174 -> id 126
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Brasil 1319 -> id 128
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Caldas 1760 -> id 131
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Campos Luis M 1562 -> id 132
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Carlos Pellegrini 979 -> id 133
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Caseros 3159 -> id 134
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Castañares 5754 -> id 135
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Catamarca 931 -> id 136
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Charcas 2748 -> id 137
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Cordoba 4115 -> id 138
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Corrientes 3841 -> id 139
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Crisologo Larralde 2954 -> id 140
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Crisologo Larralde 4741 -> id 141
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Defensa 375 -> id 142
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Deheza 1640 -> id 143
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Diaz Velez 3625 -> id 144
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Echeverria 5207 -> id 145
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Ecuador 1324 -> id 146
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Estado de Israel 4334 -> id 147
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Falcon Ramon 1652 -> id 150
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Felipe Vallese 2056 -> id 151
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Galileo 2465 -> id 153
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Garcia del Rio 2857 -> id 154
+  📅 Año: 2024
+  📅 Año: 2025
+  ⚠️  Ignorando carpeta año no válido: Verificar en resumen Abril
+🏢 Edificio: Girardot 1825 -> id 155
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Godoy Cruz 2573 -> id 156
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Godoy Cruz 2782 -> id 157
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Guemes 4478 -> id 158
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Guido 1852 -> id 159
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Guise 1630 -> id 160
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Hipolito Irigoyen 1973 -> id 161
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Honduras 5857 -> id 162
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Humberto 1° 959 -> id 163
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Humbold 1317 -> id 164
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Humboldt 847 -> id 165
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Independencia 1590 -> id 166
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Julio A Roca 771 -> id 168
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Juncal 1396 -> id 169
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Juncal 866 -> id 170
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Lafinur 2955 -> id 171
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Lanteri 1331 -> id 172
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Libertad 446 -> id 173
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Llamados -> id 233
+  ⚠️  Ignorando carpeta año no válido: Llamados-notas etc
+🏢 Edificio: LLerena 2647 -> id 175
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Miramar 4155 -> id 177
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Monroe 2523 -> id 179
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Montañeses 2993 -> id 180
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Moreno 2231 -> id 181
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Moreno 963 -> id 183
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Olazabal 1428 -> id 184
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: O´Higgins 1876 -> id 186
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Pacheco 3466 -> id 187
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Paraguay 1204 -> id 188
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Paraguay 776 -> id 189
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Paysandu 544 -> id 191
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Pedidos de Mantenimiento -> id 234
+  ⚠️  Ignorando carpeta año no válido: MANTENIMIENTOS POR OTRAS EMPRESAS
+🏢 Edificio: Pergamino 2882 -> id 193
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Piedras 1532 -> id 194
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Piedras 906 -> id 195
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Porcel de peralta 1458 -> id 196
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Quirno 342 -> id 198
+  📅 Año: 2025
+🏢 Edificio: Ramirez de Velazco 183 -> id 199
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Romulo Naon 3754 -> id 201
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: San Martin 6337 -> id 203
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Santa Fe 3290 -> id 204
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Santa Fe 5371 -> id 205
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Santiago del Estero 478 -> id 206
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Santo Tome 2496 -> id 207
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Scalabrini Ortiz 1627-29 -> id 208
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Scalabrini Ortiz 817 -> id 209
+  ⚠️  Ignorando carpeta año no válido: Rats
+🏢 Edificio: Solis 2032 -> id 210
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Superi 2775 -> id 211
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Superi 2954 -> id 212
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Superi 3200 -> id 213
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Thames 31 -> id 214
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Ugarte Manuel 1885 -> id 215
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Uruguay 1259 -> id 216
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Uruguay 16 -> id 217
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Varela 1802 -> id 218
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Villarroel 1071 -> id 219
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Vuelta Obligado 3067 -> id 220
+  ⚠️  Ignorando carpeta año no válido: NOTA DE CREDITO
+🏢 Edificio: Washington 3481 -> id 221
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: Yerbal 4160 -> id 222
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: z--Edificios que se dieron de baja -> id 235
+  ⚠️  Ignorando carpeta año no válido: Anchorena 1338
+  ⚠️  Ignorando carpeta año no válido: Anchorena 1342
+  ⚠️  Ignorando carpeta año no válido: Anchorena 1350
+  ⚠️  Ignorando carpeta año no válido: Cabildo 459
+  ⚠️  Ignorando carpeta año no válido: Humboldt 689
+  ⚠️  Ignorando carpeta año no válido: Monroe 5688
+  ⚠️  Ignorando carpeta año no válido: Rodriguez Peña 1256
+  ⚠️  Ignorando carpeta año no válido: Tacuari 1389
+🏢 Edificio: Zapata 592 -> id 224
+  📅 Año: 2024
+  📅 Año: 2025
+🏢 Edificio: z_CONTROL DE PAGOS DE LOS TRABAJOS -> id 236
+  ⚠️  Ignorando carpeta año no válido: SEGUIMIENTOS DE TRABAJOS Y PAGOS
+🏢 Edificio: _Z fOTOS -> id 237
+  📅 Año: 1
+  📅 Año: 2
+  📅 Año: 2025
+  📅 Año: 26
+  ⚠️  Ignorando carpeta año no válido: FOTOS
+  ⚠️  Ignorando carpeta año no válido: orden
+  ⚠️  Ignorando carpeta año no válido: RECOLETA
+  ⚠️  Ignorando carpeta año no válido: _Z fOTOS - copia
+
+---
+Edificios procesados: 103
+Años procesados: 195
+Invoices importadas: 0
+Invoices saltadas (duplicados): 5086
+Archivos copiados: 0
+Errores: 0

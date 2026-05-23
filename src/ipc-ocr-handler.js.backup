@@ -1,0 +1,624 @@
+/**
+ * ipc-ocr-handler.js
+ * SOLUCIÓN DEFINITIVA - Extractor OCR robusto contra texto binario
+ * Creado por Claude para resolver problema de basura binaria en PDFs AFIP
+ */
+
+const { ipcMain } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const zlib = require('zlib');
+
+// ============================================================================
+// FILTROS DE TEXTO ROBUSTOS
+// ============================================================================
+
+/**
+ * Detecta si un texto contiene principalmente caracteres binarios/corruptos
+ * CRITERIO ESTRICTO: Solo acepta texto con caracteres ASCII imprimibles + español
+ */
+function esTextoBinario(texto) {
+  if (!texto || texto.length < 3) return true;
+  
+  // Contar diferentes tipos de caracteres
+  let imprimibles = 0;
+  let binarios = 0;
+  let espacios = 0;
+  
+  for (let i = 0; i < texto.length; i++) {
+    const code = texto.charCodeAt(i);
+    
+    // Caracteres imprimibles válidos (más estricto)
+    if (
+      (code >= 48 && code <= 57) ||   // 0-9
+      (code >= 65 && code <= 90) ||   // A-Z
+      (code >= 97 && code <= 122) ||  // a-z
+      code === 32 || code === 9 || code === 10 || code === 13 || // espacio, tab, LF, CR
+      (code >= 193 && code <= 199) || // Á, É, Í, Ó, Ú
+      (code >= 201 && code <= 205) || // Ñ, Ü, etc.
+      (code >= 209 && code <= 220) || // á, é, í, ó, ú, ñ
+      (code >= 224 && code <= 252)   // Más acentos
+    ) {
+      if (code === 32 || code === 9 || code === 10 || code === 13) {
+        espacios++;
+      } else {
+        imprimibles++;
+      }
+    } else {
+      binarios++;
+    }
+  }
+  
+  const total = texto.length;
+  const porcentajeBinario = (binarios / total) * 100;
+  const porcentajeImprimible = (imprimibles / total) * 100;
+  
+  // Si más del 5% son caracteres binarios, es basura (más estricto)
+  // Si menos del 50% son caracteres imprimibles útiles, es basura (más estricto)
+  return porcentajeBinario > 5 || porcentajeImprimible < 50;
+}
+
+/**
+ * Limpia texto de caracteres binarios y no imprimibles
+ */
+function limpiarTextoBinario(texto) {
+  if (!texto) return '';
+  
+  let limpio = '';
+  for (let i = 0; i < texto.length; i++) {
+    const code = texto.charCodeAt(i);
+    
+    // Solo mantener caracteres válidos
+    if (
+      (code >= 32 && code <= 126) ||   // ASCII imprimible
+      (code >= 192 && code <= 255) ||   // Acentos español
+      code === 10 || code === 13        // Saltos de línea
+    ) {
+      limpio += texto[i];
+    } else if (code === 9) {
+      limpio += ' '; // Tab -> espacio
+    }
+  }
+  
+  return limpio;
+}
+
+/**
+ * Valida que un texto sea relevante para facturas AFIP
+ */
+function esTextoRelevante(texto) {
+  if (!texto || texto.length < 5) return false;
+  
+  // Primero verificar que NO sea binario
+  if (esTextoBinario(texto)) {
+    return false;
+  }
+  
+  const textoLimpio = limpiarTextoBinario(texto).toLowerCase();
+  
+  // Palabras clave de facturas AFIP
+  const palabrasClave = [
+    'factura', 'punto', 'venta', 'comp', 'nro', 'cuit', 'importe', 'total',
+    'fecha', 'emision', 'razon', 'social', 'iva', 'afip', 'consumidor', 'final',
+    'responsable', 'inscripto', 'monotributo', 'codigo', 'documento'
+  ];
+  
+  // Si contiene al menos una palabra clave, es relevante
+  return palabrasClave.some(palabra => textoLimpio.includes(palabra));
+}
+
+// ============================================================================
+// EXTRACCIÓN DE OBJETOS PDF
+// ============================================================================
+
+/**
+ * Extrae texto de strings en objetos PDF
+ * Método directo sin usar pdf-parse para evitar crashes
+ */
+function extraerTextoDeObjetosPDF(buffer) {
+  console.log('[OCR-EXTRACT] Iniciando extracción de objetos PDF');
+  
+  const pdfString = buffer.toString('binary');
+  const textos = new Set(); // Evitar duplicados
+  
+  // ESTRATEGIA 1: Buscar strings entre paréntesis (formato PDF estándar)
+  // Patrón: (texto aquí) - común en PDFs
+  const regexParentesis = /\(([^)]{3,200})\)/g;
+  let match;
+  
+  while ((match = regexParentesis.exec(pdfString)) !== null) {
+    const texto = match[1];
+    
+    // Decodificar secuencias de escape PDF
+    const textoDecodificado = decodificarStringPDF(texto);
+    
+    if (!esTextoBinario(textoDecodificado)) {
+      const limpio = limpiarTextoBinario(textoDecodificado).trim();
+      if (limpio.length >= 3) {
+        textos.add(limpio);
+      }
+    }
+  }
+  
+  // ESTRATEGIA 2: Buscar strings entre corchetes angulares (formato hexadecimal)
+  // Patrón: <48656C6C6F> - texto en hex
+  const regexHex = /<([0-9A-Fa-f]{6,400})>/g;
+  
+  while ((match = regexHex.exec(pdfString)) !== null) {
+    try {
+      const hexString = match[1];
+      const textoDecodificado = decodificarHexPDF(hexString);
+      
+      if (!esTextoBinario(textoDecodificado)) {
+        const limpio = limpiarTextoBinario(textoDecodificado).trim();
+        if (limpio.length >= 3) {
+          textos.add(limpio);
+        }
+      }
+    } catch (e) {
+      // Ignorar errores de decodificación
+    }
+  }
+  
+  // ESTRATEGIA 3: Buscar patrones específicos de AFIP directamente en binario
+  const patronesAFIP = [
+    /Punto\s+de\s+Venta[:\s]+(\d{5})/gi,
+    /Comp\.\s*Nro[:\s]+(\d{8})/gi,
+    /Importe\s+Total[:\s$]*\s*\$?\s*([\d.,]+)/gi,
+    /Fecha\s+de\s+Emisi[oó]n[:\s]+([\d/]+)/gi,
+    /CUIT[:\s]+([\d-]+)/gi,
+    /Raz[oó]n\s+Social[:\s]+([A-ZÁÉÍÓÚÑ\s]+)/gi
+  ];
+  
+  // Buscar patrones en el PDF convertido a latin1 (común en PDFs argentinos)
+  const pdfLatin1 = buffer.toString('latin1');
+  
+  for (const patron of patronesAFIP) {
+    while ((match = patron.exec(pdfLatin1)) !== null) {
+      const contexto = pdfLatin1.substring(
+        Math.max(0, match.index - 50),
+        Math.min(pdfLatin1.length, match.index + match[0].length + 50)
+      );
+      
+      if (!esTextoBinario(contexto)) {
+        textos.add(limpiarTextoBinario(match[0]).trim());
+      }
+    }
+  }
+  
+  // ESTRATEGIA 4: Intentar diferentes encodings si todo lo demás falla
+  if (textos.size === 0) {
+    console.log('[OCR-EXTRACT] Intentando decodificación con diferentes encodings...');
+    
+    // Intentar decodificar con diferentes encodings
+    const encodings = ['utf8', 'latin1', 'ascii', 'utf16le', 'cp1252'];
+    
+    for (const encoding of encodings) {
+      try {
+        const textoDecodificado = buffer.toString(encoding);
+        
+        // Buscar patrones AFIP directamente en este encoding
+        const patronesAFIP = [
+          /Punto\s+de\s+Venta[:\s]+(\d{5})/gi,
+          /Comp\.\s*Nro[:\s]+(\d{8})/gi,
+          /Importe\s+Total[:\s$]*\s*\$?\s*([\d.,]+)/gi,
+          /Fecha\s+de\s+Emisi[oó]n[:\s]+([\d/]+)/gi
+        ];
+        
+        let encontrado = false;
+        for (const patron of patronesAFIP) {
+          if (patron.test(textoDecodificado)) {
+            textos.add(limpiarTextoBinario(textoDecodificado));
+            encontrado = true;
+            console.log(`[OCR-EXTRACT] Patrones AFIP encontrados con encoding ${encoding}`);
+            break;
+          }
+        }
+        
+        if (encontrado) break;
+      } catch (e) {
+        console.log(`[OCR-EXTRACT] Encoding ${encoding} falló:`, e.message);
+      }
+    }
+  }
+  
+  const textosCombinados = Array.from(textos).join('\n');
+  
+  console.log(`[OCR-EXTRACT] Textos únicos encontrados: ${textos.size}`);
+  console.log(`[OCR-EXTRACT] Texto total: ${textosCombinados.length} chars`);
+  console.log(`[OCR-EXTRACT] Preview (primeros 300 chars):\n${textosCombinados.substring(0, 300)}`);
+  
+  return textosCombinados;
+}
+
+/**
+ * Decodifica strings PDF con secuencias de escape
+ */
+function decodificarStringPDF(str) {
+  return str
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')')
+    .replace(/\\\\/g, '\\')
+    .replace(/\\(\d{3})/g, (_, octal) => String.fromCharCode(parseInt(octal, 8)));
+}
+
+/**
+ * Decodifica strings hexadecimales de PDF
+ */
+function decodificarHexPDF(hexString) {
+  let resultado = '';
+  for (let i = 0; i < hexString.length; i += 2) {
+    const byte = parseInt(hexString.substr(i, 2), 16);
+    if (!isNaN(byte)) {
+      resultado += String.fromCharCode(byte);
+    }
+  }
+  return resultado;
+}
+
+// ============================================================================
+// PARSING DE DATOS DE FACTURA
+// ============================================================================
+
+/**
+ * Extrae datos específicos de factura AFIP del texto
+ */
+function parsearDatosFactura(texto) {
+  console.log('[OCR-PARSER] Iniciando parsing de factura AFIP');
+  console.log(`[OCR-PARSER] Texto a parsear: ${texto.length} chars`);
+  
+  if (esTextoBinario(texto)) {
+    console.log('[OCR-PARSER] ⚠️ ADVERTENCIA: Texto parece ser binario');
+  }
+  
+  const textoLimpio = limpiarTextoBinario(texto);
+  console.log(`[OCR-PARSER] Texto limpio: ${textoLimpio.length} chars`);
+  console.log(`[OCR-PARSER] Preview limpio (primeros 500 chars):\n${textoLimpio.substring(0, 500)}`);
+  
+  const datos = {};
+  
+  // EXTRACCIÓN 1: Punto de Venta
+  const patronesPuntoVenta = [
+    /Punto\s+de\s+Venta[:\s]+0*(\d{1,5})/i,
+    /Pto\.\s*Vta[:\s]+0*(\d{1,5})/i,
+    /P\.?\s*Venta[:\s]+0*(\d{1,5})/i
+  ];
+  
+  for (const patron of patronesPuntoVenta) {
+    const match = textoLimpio.match(patron);
+    if (match && match[1]) {
+      datos.puntoVenta = match[1].padStart(5, '0');
+      console.log(`[OCR-PARSER] Punto de Venta encontrado: ${datos.puntoVenta} (raw: "${match[0]}")`);
+      break;
+    }
+  }
+  
+  // EXTRACCIÓN 2: Número de Comprobante
+  const patronesNumero = [
+    /Comp\.\s*Nro[:\s]+0*(\d{1,8})/i,
+    /N[úu]mero[:\s]+0*(\d{1,8})/i,
+    /Comprobante\s+N[°º][:\s]+0*(\d{1,8})/i,
+    /Nro[:\s]+0*(\d{8})/i
+  ];
+  
+  for (const patron of patronesNumero) {
+    const match = textoLimpio.match(patron);
+    if (match && match[1] && parseInt(match[1]) > 10) { // Evitar números muy pequeños
+      datos.numeroComprobante = match[1].padStart(8, '0');
+      console.log(`[OCR-PARSER] Número de comprobante encontrado: ${datos.numeroComprobante} (raw: "${match[0]}")`);
+      break;
+    }
+  }
+  
+  // EXTRACCIÓN 3: Importe Total
+  const patronesMonto = [
+    /Importe\s+Total[:\s$]*\s*\$?\s*([\d.,]+)/i,
+    /Total[:\s$]+\$?\s*([\d.,]+)/i,
+    /Imp\.\s*Total[:\s$]*\s*\$?\s*([\d.,]+)/i
+  ];
+  
+  for (const patron of patronesMonto) {
+    const match = textoLimpio.match(patron);
+    if (match && match[1]) {
+      // Convertir formato argentino (28.100,00) a número
+      const montoStr = match[1].replace(/\./g, '').replace(',', '.');
+      const monto = parseFloat(montoStr);
+      
+      // Validar que sea un monto razonable (entre $10 y $10.000.000)
+      if (!isNaN(monto) && monto >= 10 && monto <= 10000000) {
+        datos.monto = monto;
+        console.log(`[OCR-PARSER] Monto encontrado: ${monto} (raw: "${match[1]}")`);
+        break;
+      }
+    }
+  }
+  
+  // EXTRACCIÓN 4: Fecha
+  const patronesFecha = [
+    /Fecha\s+de\s+Emisi[oó]n[:\s]+([\d]{1,2}[\/\-][\d]{1,2}[\/\-][\d]{2,4})/i,
+    /Fecha[:\s]+([\d]{1,2}[\/\-][\d]{1,2}[\/\-][\d]{2,4})/i,
+    /Emisi[oó]n[:\s]+([\d]{1,2}[\/\-][\d]{1,2}[\/\-][\d]{2,4})/i
+  ];
+  
+  for (const patron of patronesFecha) {
+    const match = textoLimpio.match(patron);
+    if (match && match[1]) {
+      datos.fecha = match[1];
+      console.log(`[OCR-PARSER] Fecha encontrada: ${datos.fecha} (raw: "${match[0]}")`);
+      break;
+    }
+  }
+  
+  // EXTRACCIÓN 5: CUIT
+  const patronesCUIT = [
+    /CUIT[:\s]+([\d\-]{11,13})/i,
+    /C\.?U\.?I\.?T\.?[:\s]+([\d\-]{11,13})/i
+  ];
+  
+  for (const patron of patronesCUIT) {
+    const match = textoLimpio.match(patron);
+    if (match && match[1]) {
+      datos.cuit = match[1].replace(/\-/g, '');
+      console.log(`[OCR-PARSER] CUIT encontrado: ${datos.cuit} (raw: "${match[1]}")`);
+      break;
+    }
+  }
+  
+  // EXTRACCIÓN 6: Razón Social
+  const patronesRazonSocial = [
+    /Raz[oó]n\s+Social[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{10,100})/i,
+    /Apellido\s+y\s+Nombre[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{10,100})/i
+  ];
+  
+  for (const patron of patronesRazonSocial) {
+    const match = textoLimpio.match(patron);
+    if (match && match[1]) {
+      // Limpiar y limitar longitud
+      datos.razonSocial = match[1].trim().substring(0, 100);
+      console.log(`[OCR-PARSER] Razón Social encontrada: ${datos.razonSocial}`);
+      break;
+    }
+  }
+  
+  // Calcular número completo si tenemos ambas partes
+  if (datos.puntoVenta && datos.numeroComprobante) {
+    datos.numero = `${datos.puntoVenta}-${datos.numeroComprobante}`;
+  }
+  
+  // Validación final de coherencia
+  const validacion = validarDatosExtraidos(datos);
+  if (!validacion.valido) {
+    console.log('[OCR-PARSER] ⚠️ Los datos extraídos no pasaron la validación de coherencia');
+    return {
+      datos,
+      exitoso: false,
+      rawText: textoLimpio
+    };
+  }
+  
+  console.log('[OCR-PARSER] ✓ Extracción exitosa y validada');
+  
+  return {
+    datos,
+    exitoso: true,
+    rawText: textoLimpio
+  };
+}
+
+/**
+ * Valida coherencia de datos extraídos
+ */
+function validarDatosExtraidos(datos) {
+  const errores = [];
+  
+  // Validar punto de venta
+  if (datos.puntoVenta) {
+    const pv = parseInt(datos.puntoVenta);
+    if (isNaN(pv) || pv < 1 || pv > 99999) {
+      errores.push('Punto de venta fuera de rango');
+    }
+  }
+  
+  // Validar número de comprobante
+  if (datos.numeroComprobante) {
+    const nc = parseInt(datos.numeroComprobante);
+    if (isNaN(nc) || nc < 1) {
+      errores.push('Número de comprobante inválido');
+    }
+  }
+  
+  // Validar monto
+  if (datos.monto !== undefined) {
+    if (isNaN(datos.monto) || datos.monto < 0.01 || datos.monto > 100000000) {
+      errores.push('Monto fuera de rango razonable');
+    }
+  }
+  
+  // Validar fecha
+  if (datos.fecha) {
+    const fechaMatch = datos.fecha.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (fechaMatch) {
+      const dia = parseInt(fechaMatch[1]);
+      const mes = parseInt(fechaMatch[2]);
+      if (dia < 1 || dia > 31 || mes < 1 || mes > 12) {
+        errores.push('Fecha inválida');
+      }
+    }
+  }
+  
+  // Validar CUIT (debe ser 11 dígitos)
+  if (datos.cuit && datos.cuit.replace(/\-/g, '').length !== 11) {
+    errores.push('CUIT debe tener 11 dígitos');
+  }
+  
+  return {
+    valido: errores.length === 0,
+    errores
+  };
+}
+
+// ============================================================================
+// FUNCIÓN PRINCIPAL DE EXTRACCIÓN OCR
+// ============================================================================
+
+async function extraerDatosConOCR(pdfPath) {
+  console.log(`[OCR] Iniciando extracción OCR para: ${pdfPath}`);
+  
+  try {
+    // Leer archivo PDF
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    console.log(`[OCR] PDF cargado: ${pdfBuffer.length} bytes`);
+    
+    // Extraer texto de objetos PDF
+    const textoExtraido = extraerTextoDeObjetosPDF(pdfBuffer);
+    
+    if (!textoExtraido || textoExtraido.trim().length === 0) {
+      console.log('[OCR] ⚠️ No se pudo extraer texto del PDF');
+      return {
+        success: false,
+        error: 'No se pudo extraer texto del PDF'
+      };
+    }
+    
+    // Verificar si el texto es mayormente binario
+    if (esTextoBinario(textoExtraido)) {
+      console.log('[OCR] ⚠️ El texto extraído parece ser binario/corrupto');
+      console.log(`[OCR] Preview de texto corrupto: ${textoExtraido.substring(0, 200)}`);
+      
+      return {
+        success: false,
+        error: 'El PDF contiene texto corrupto o codificado de forma no estándar',
+        debug: {
+          longitudTexto: textoExtraido.length,
+          preview: textoExtraido.substring(0, 500)
+        }
+      };
+    }
+    
+    console.log(`[OCR] Texto extraído exitosamente: ${textoExtraido.length} chars ✓`);
+    
+    // Parsear datos de factura
+    const resultado = parsearDatosFactura(textoExtraido);
+    
+    if (!resultado.exitoso) {
+      console.log('[OCR] ⚠️ No se encontraron suficientes datos en el texto');
+      return {
+        success: false,
+        error: `Solo se encontraron ${resultado.datos ? Object.keys(resultado.datos).length : 0} de 6 campos mínimos requeridos`,
+        datos: resultado.datos || {},
+        rawText: resultado.rawText || ''
+      };
+    }
+    
+    console.log('[OCR] ✓ Extracción exitosa y validada');
+    
+    return {
+      success: true,
+      datos: resultado.datos,
+      rawText: resultado.rawText || ''
+    };
+    
+  } catch (error) {
+    console.error('[OCR] ERROR durante extracción:', error);
+    return {
+      success: false,
+      error: error.message,
+      stack: error.stack
+    };
+  }
+}
+
+// ============================================================================
+// REGISTRAR HANDLERS IPC
+// ============================================================================
+
+function registrarHandlersOCR() {
+  // Handler para procesar archivo PDF
+  ipcMain.handle('extraer-datos-factura', async (event, filePath) => {
+    console.log('[OCR] Procesando:', path.basename(filePath));
+    
+    try {
+      const resultado = await extraerDatosConOCR(filePath);
+      
+      if (resultado.success) {
+        // Formatear para compatibilidad con frontend existente
+        return {
+          success: true,
+          datos: {
+            numero: resultado.datos.numero || null,
+            monto: resultado.datos.monto || null,
+            fecha: resultado.datos.fecha || null,
+            razonSocial: resultado.datos.razonSocial || null,
+            cuit: resultado.datos.cuit || null,
+            periodo: resultado.datos.periodo || null,
+            rawText: resultado.datos.rawText || ''
+          }
+        };
+      } else {
+        return {
+          success: false,
+          error: resultado.error,
+          datos: null
+        };
+      }
+    } catch (error) {
+      console.error('[OCR] Error en handler:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        datos: null
+      };
+    }
+  });
+
+  // Handler para procesar buffer PDF
+  ipcMain.handle('extraer-datos-factura-buffer', async (event, bufferArray) => {
+    try {
+      const buffer = Buffer.from(bufferArray);
+      
+      // Crear archivo temporal
+      const tempPath = path.join(__dirname, 'temp_pdf.pdf');
+      fs.writeFileSync(tempPath, buffer);
+      
+      // Procesar como archivo
+      const resultado = await extraerDatosConOCR(tempPath);
+      
+      // Limpiar archivo temporal
+      fs.unlinkSync(tempPath);
+      
+      if (resultado.success) {
+        return {
+          success: true,
+          datos: {
+            numero: resultado.datos.numero || null,
+            monto: resultado.datos.monto || null,
+            fecha: resultado.datos.fecha || null,
+            razonSocial: resultado.datos.razonSocial || null,
+            cuit: resultado.datos.cuit || null,
+            periodo: resultado.datos.periodo || null,
+            rawText: resultado.datos.rawText || ''
+          }
+        };
+      } else {
+        return {
+          success: false,
+          error: resultado.error,
+          datos: null
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        datos: null
+      };
+    }
+  });
+
+  console.log('[OCR] Handlers registrados correctamente (extractor robusto anti-binario)');
+}
+
+module.exports = { registrarHandlersOCR };

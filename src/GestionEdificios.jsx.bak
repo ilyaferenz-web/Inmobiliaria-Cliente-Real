@@ -1,0 +1,845 @@
+import React, { useState, useEffect, useRef } from 'react'
+import { Plus, Trash2, Eye, Search, ChevronRight, Building2, AlertCircle, CheckCircle, Edit2, RotateCcw, Wrench, Image, DollarSign } from 'lucide-react'
+
+// Dedicated payments view component
+function PagosView(){
+  return null
+}
+export default function GestionEdificios() {
+  const [edificios, setEdificios] = useState([])
+  const [papelera, setPapelera] = useState([])
+  const [view, setView] = useState('home')
+  const [errors, setErrors] = useState('')
+  const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+
+  const [formAgregar, setFormAgregar] = useState({ direccion: '' })
+  const [formBuscar, setFormBuscar] = useState({ direccion: '' })
+  const [resultadoBusca, setResultadoBusca] = useState(null)
+  const [direccionEliminar, setDireccionEliminar] = useState('')
+  const [filterCalle, setFilterCalle] = useState('')
+  const [editForm, setEditForm] = useState({ direccion: '' })
+  // Facturas state
+  const [years, setYears] = useState([])
+  const [months, setMonths] = useState([])
+  const [facturas, setFacturas] = useState([])
+  const [newYearInput, setNewYearInput] = useState('')
+  const [newMonthInput, setNewMonthInput] = useState('')
+  const [selectedBuildingId, setSelectedBuildingId] = useState(null)
+  const [selectedYearId, setSelectedYearId] = useState(null)
+  const [selectedMonthId, setSelectedMonthId] = useState(null)
+  const [selectedFilePath, setSelectedFilePath] = useState('')
+  const [invoiceForm, setInvoiceForm] = useState({ fecha: '', monto: '', descripcion: '' })
+  const [editingInvoiceId, setEditingInvoiceId] = useState(null)
+  const [editingInvoiceForm, setEditingInvoiceForm] = useState({ fecha: '', monto: '', descripcion: '' })
+  // MANTENIMIENTO
+  const [maintenanceBuildingId, setMaintenanceBuildingId] = useState(null)
+  const [maintenanceNotes, setMaintenanceNotes] = useState([])
+  const [maintenanceForm, setMaintenanceForm] = useState({ titulo: '', texto: '' })
+  // FOTOS
+  const [photoBuildingId, setPhotoBuildingId] = useState(null)
+  const [buildingPhotos, setBuildingPhotos] = useState([])
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState(null)
+  const [selectedPhotoForModal, setSelectedPhotoForModal] = useState(null)
+
+  const cargarEdificios = async () => {
+    try {
+      if (window.api && window.api.obtenerEdificios) {
+        const data = await window.api.obtenerEdificios()
+        setEdificios(data)
+      } else {
+        setEdificios([])
+      }
+    } catch (err) { console.error(err) }
+
+    // also refresh debt list in case things changed
+    if (typeof cargarEdificiosConDeuda === 'function') {
+      await cargarEdificiosConDeuda()
+    }
+  }
+
+  // parent helper for child view to notify when buildings-with-debt data changes
+  const cargarEdificiosConDeuda = async () => {
+    // currently no top-level state to keep in sync; this function exists so
+    // PagosView can call it without crashing. Implementation can be expanded
+    // later if the parent needs to track debt metadata for other views.
+  }
+
+  // load buildings when the component mounts (and optionally when the view is shown)
+  useEffect(() => {
+    cargarEdificios()
+  }, [])
+
+  // when we switch to the pagos view refresh the "with debt" list
+  useEffect(() => {
+    if (view === 'pagos') {
+      cargarEdificiosConDeuda()
+    }
+  }, [view])
+
+  const guardarCambios = async () => {
+    if (!editingId) return
+    const { direccion } = editForm
+    if (!direccion) { mostrarMensaje('error', 'Dirección vacía'); return }
+    try {
+      setLoading(true)
+      if (window.api && window.api.modificarEdificio) await window.api.modificarEdificio({ id: editingId, direccion })
+      mostrarMensaje('success', '✓ Dirección modificada')
+      setEditingId(null)
+      setEditForm({ direccion: '' })
+      await cargarEdificios()
+    } catch (err) { mostrarMensaje('error', 'Error al modificar') } finally { setLoading(false) }
+  }
+
+  const mostrarMensaje = (tipo, msg) => {
+    if (tipo === 'error') { setErrors(msg); setTimeout(() => setErrors(''), 4000) }
+    else { setSuccess(msg); setTimeout(() => setSuccess(''), 4000) }
+  }
+
+  const validarDireccion = (direccion) => direccion && direccion.trim().length > 0
+
+  const guardarEdificio = async () => {
+    setErrors('')
+    const { direccion } = formAgregar
+    if (!direccion) { mostrarMensaje('error', 'La dirección es obligatoria'); return }
+    if (!validarDireccion(direccion)) { mostrarMensaje('error', 'Dirección inválida'); return }
+    try {
+      setLoading(true)
+      if (window.api && window.api.agregarEdificio) await window.api.agregarEdificio(direccion)
+      mostrarMensaje('success', '✓ Edificio agregado correctamente')
+      setFormAgregar({ direccion: '' })
+      await cargarEdificios()
+    } catch (err) { mostrarMensaje('error', 'Error al guardar: ' + (err.message || err)) } finally { setLoading(false) }
+  }
+
+  const agregarAno = async () => {
+    if (!selectedBuildingId || !newYearInput) { mostrarMensaje('error','Seleccione edificio y año'); return }
+    try {
+      const payload = { buildingId: selectedBuildingId, year: parseInt(newYearInput) }
+      await window.api.agregarYear(payload)
+      const ys = await window.api.obtenerYears(selectedBuildingId)
+      setYears(ys || [])
+      setNewYearInput('')
+      mostrarMensaje('success','Año agregado')
+    } catch (e) { mostrarMensaje('error','Error al agregar año') }
+  }
+
+  const agregarMes = async () => {
+    if (!selectedYearId || !newMonthInput) { mostrarMensaje('error','Seleccione año y nombre de mes'); return }
+    try {
+      const payload = { yearId: selectedYearId, mes: newMonthInput }
+      await window.api.agregarMonth(payload)
+      const ms = await window.api.obtenerMonths(selectedYearId)
+      setMonths(ms || [])
+      setNewMonthInput('')
+      mostrarMensaje('success','Mes agregado')
+    } catch (e) { mostrarMensaje('error','Error al agregar mes') }
+  }
+
+  const eliminarAno = async (yearId) => {
+    if (!confirm('¿Eliminar este año y todos sus datos?')) return
+    try {
+      await window.api.eliminarYear(yearId)
+      const ys = await window.api.obtenerYears(selectedBuildingId)
+      setYears(ys || [])
+      setSelectedYearId(null)
+      setMonths([])
+      setFacturas([])
+      mostrarMensaje('success','Año eliminado')
+    } catch (e) { mostrarMensaje('error','Error al eliminar año') }
+  }
+
+  const handleReplacePDF = async (facturaId) => {
+    try {
+      const path = await window.api.seleccionarPDF()
+      if (!path) return
+      const res = await window.api.reemplazarFactura({ facturaId, sourcePath: path })
+      if (res && res.success) {
+        mostrarMensaje('success','PDF reemplazado')
+        const fns = await window.api.obtenerFacturas(selectedMonthId)
+        setFacturas(fns || [])
+      } else {
+        mostrarMensaje('error', res.error || 'Error al reemplazar PDF')
+      }
+    } catch (e) { mostrarMensaje('error','Error al reemplazar PDF') }
+  }
+
+  const handleDropOnInvoice = async (facturaId, e) => {
+    e.preventDefault()
+    try {
+      const dt = e.nativeEvent && e.nativeEvent.dataTransfer ? e.nativeEvent.dataTransfer : e.dataTransfer
+      const file = dt && dt.files && dt.files[0]
+      const sourcePath = file && (file.path || (file.name && file.name))
+      if (!sourcePath) { mostrarMensaje('error','No se obtuvo ruta del archivo arrastrado'); return }
+      const res = await window.api.reemplazarFactura({ facturaId, sourcePath })
+      if (res && res.success) {
+        mostrarMensaje('success','PDF reemplazado')
+        const fns = await window.api.obtenerFacturas(selectedMonthId)
+        setFacturas(fns || [])
+      } else mostrarMensaje('error', res.error || 'Error al reemplazar via arrastre')
+    } catch (err) { mostrarMensaje('error','Error al procesar drop') }
+  }
+
+  const eliminarEdificio = async (id) => {
+    try { setLoading(true); if (window.api && window.api.eliminarEdificio) await window.api.eliminarEdificio(id); mostrarMensaje('success', '✓ Edificio movido a papelera'); await cargarEdificios() } catch (err) { mostrarMensaje('error', 'Error al eliminar') } finally { setLoading(false) }
+  }
+
+  const buscarEdificioFunc = async () => {
+    setErrors('')
+    const { direccion } = formBuscar
+    if (!direccion) { mostrarMensaje('error', 'Ingrese la dirección'); return }
+    if (!validarDireccion(direccion)) { mostrarMensaje('error', 'Dirección inválida'); return }
+    try {
+      setLoading(true)
+      if (window.api && window.api.buscarEdificio) {
+        const resultado = await window.api.buscarEdificio(direccion)
+        if (resultado) { setResultadoBusca(resultado); mostrarMensaje('success', '✓ Edificio encontrado') }
+        else { setResultadoBusca(null); mostrarMensaje('error', 'No se encontró la dirección') }
+      }
+    } catch (err) { mostrarMensaje('error', 'Error en búsqueda') } finally { setLoading(false) }
+  }
+
+  const cargarNotasMantenimiento = async (buildingId) => {
+    if (!buildingId) return
+    try {
+      const data = await window.api.obtenerNotasMantenimiento(buildingId)
+      setMaintenanceNotes(data || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const guardarNotaMantenimiento = async () => {
+    if (!maintenanceBuildingId) {
+      mostrarMensaje('error', 'Seleccione un edificio')
+      return
+    }
+
+    if (!maintenanceForm.titulo || !maintenanceForm.texto) {
+      mostrarMensaje('error', 'Título y texto son obligatorios')
+      return
+    }
+
+    try {
+      await window.api.agregarNotaMantenimiento({
+        buildingId: maintenanceBuildingId,
+        nombre: maintenanceForm.titulo,
+        filePath: maintenanceForm.texto // guardamos texto en file_path
+      })
+
+      mostrarMensaje('success', 'Nota guardada')
+      setMaintenanceForm({ titulo: '', texto: '' })
+      await cargarNotasMantenimiento(maintenanceBuildingId)
+    } catch (err) {
+      mostrarMensaje('error', 'Error al guardar nota ' + err)
+    }
+  }
+
+  const eliminarNotaMantenimiento = async (id) => {
+    if (!confirm('¿Eliminar esta nota?')) return
+
+    try {
+      await window.api.eliminarNotaMantenimiento(id)
+      await cargarNotasMantenimiento(maintenanceBuildingId)
+      mostrarMensaje('success', 'Nota eliminada')
+    } catch (err) {
+      mostrarMensaje('error', 'Error al eliminar nota ' + err)
+    }
+  }
+
+  const cargarFotosEdificio = async (buildingId) => {
+    if (!buildingId) return
+
+    try {
+      const data = await window.api.obtenerFotosEdificio(buildingId)
+
+      // Generar previews base64
+      const fotosConPreview = await Promise.all(
+        (data || []).map(async (photo) => {
+          const preview = await window.api.obtenerImagenBase64(photo.file_path)
+          return { ...photo, preview }
+        })
+      )
+
+      setBuildingPhotos(fotosConPreview)
+
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const subirFotoEdificio = async () => {
+    if (!photoBuildingId) {
+      mostrarMensaje('error', 'Seleccione un edificio')
+      return
+    }
+
+    if (!selectedPhotoFile) {
+      mostrarMensaje('error', 'Seleccione una imagen')
+      return
+    }
+
+    try {
+      const arrayBuffer = await selectedPhotoFile.arrayBuffer()
+
+      await window.api.guardarFotoEdificio(photoBuildingId, {
+        name: selectedPhotoFile.name,
+        data: Array.from(new Uint8Array(arrayBuffer))
+      })
+
+      mostrarMensaje('success', 'Foto guardada')
+      await cargarFotosEdificio(photoBuildingId)
+
+    } catch (err) {
+      mostrarMensaje('error', 'Error al guardar foto')
+    } finally {
+      setSelectedPhotoFile(null)
+    }
+  }
+
+  const eliminarFotoEdificio = async (id) => {
+    if (!confirm('¿Eliminar esta foto?')) return
+    try {
+      await window.api.eliminarFoto(id)
+      await cargarFotosEdificio(photoBuildingId)
+      mostrarMensaje('success', 'Foto eliminada')
+    } catch (err) {
+      mostrarMensaje('error', 'Error al eliminar foto')
+    }
+  }
+
+
+  const styles = { container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', overflow: 'hidden', position: 'relative' }, backdrop: { position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }, bgBlob1: { position: 'absolute', top: '80px', left: '40px', width: '288px', height: '288px', background: 'rgba(59, 130, 246, 0.15)', borderRadius: '9999px', filter: 'blur(80px)', animation: 'pulse 8s ease-in-out infinite' }, bgBlob2: { position: 'absolute', bottom: '80px', right: '40px', width: '288px', height: '288px', background: 'rgba(6, 182, 212, 0.15)', borderRadius: '9999px', filter: 'blur(80px)', animation: 'pulse 8s ease-in-out 1s infinite' }, content: { position: 'relative', zIndex: 10 }, header: { borderBottom: '1px solid rgba(71, 85, 105, 0.3)', backdropFilter: 'blur(10px)', background: 'rgba(15, 23, 42, 0.8)', padding: '24px 0', position: 'sticky', top: 0, zIndex: 50 }, headerContent: { maxWidth: '1280px', margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }, logo: { display: 'flex', alignItems: 'center', gap: '12px' }, logoBg: { padding: '12px', background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)', borderRadius: '12px' }, notification: { position: 'fixed', top: '100px', right: '24px', padding: '16px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', backdropFilter: 'blur(10px)', border: '1px solid', zIndex: 50, animation: 'slideIn 0.3s ease-out' }, main: { maxWidth: '1280px', margin: '0 auto', padding: '48px 24px' }, grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '48px' }, card: { position: 'relative', padding: '32px', borderRadius: '16px', background: 'linear-gradient(135deg, #1e40af 0%, #0369a1 100%)', cursor: 'pointer', transition: 'all 0.3s ease', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '18px', overflow: 'hidden' }, input: { width: '100%', boxSizing: 'border-box', padding: '12px 16px', borderRadius: '8px', background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(71, 85, 105, 0.5)', color: '#fff', fontSize: '14px', marginBottom: '16px', transition: 'border-color 0.2s', fontFamily: 'inherit' }, button: { width: '100%', boxSizing: 'border-box', padding: '16px', borderRadius: '8px', background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)', color: 'white', border: 'none', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', marginBottom: '12px' }, buttonDanger: { background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' } }
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.backdrop}><div style={styles.bgBlob1}></div><div style={styles.bgBlob2}></div></div>
+      <div style={styles.content}>
+        <header style={styles.header}>
+          <div style={styles.headerContent}>
+            <div style={styles.logo}>
+              <div style={styles.logoBg}><Building2 size={28} /></div>
+              <div>
+                <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0 0 4px 0', background: 'linear-gradient(to right, #60a5fa, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BuildHub</h1>
+                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>Gestión de Edificios Premium</p>
+              </div>
+            </div>
+            {view !== 'home' && <button onClick={() => setView('home')} style={{ padding: '8px 24px', borderRadius: '8px', background: 'rgba(71, 85, 105, 0.5)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: '500' }}>← Volver</button>}
+          </div>
+        </header>
+
+        {errors && <div style={{...styles.notification, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.5)', color: '#fca5a5'}}><AlertCircle size={20} /><span>{errors}</span></div>}
+        {success && <div style={{...styles.notification, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.5)', color: '#86efac'}}><CheckCircle size={20} /><span>{success}</span></div>}
+
+        <main style={styles.main}>
+          {view === 'home' && (
+            <div>
+              <h2 style={{ fontSize: '20px', marginBottom: '32px', color: '#cbd5e1' }}>¿Qué deseas hacer hoy?</h2>
+              <div style={styles.grid}>
+                {[{ icon: Plus, title: 'Agregar', desc: 'Nuevo edificio', color: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)', view: 'agregar' },{ icon: Eye, title: 'Ver Todos', desc: 'Edificios registrados', color: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', view: 'mostrar' },{ icon: Search, title: 'Ver Facturas', desc: 'Facturas de edificios', color: 'linear-gradient(135deg, #06b6d4 0%, #0369a1 100%)', view: 'facturas' }, { icon: Wrench, title: 'Mantenimiento', desc: 'Gestión de mantenimiento', color: 'linear-gradient(135deg, #06d421 0%, #017531 100%)', view: 'mantenimiento' }, { icon: Image, title: 'Fotos', desc: 'Fotos del edificio', color: 'linear-gradient(135deg, #bd0c15 0%, #5e0111 100%)', view: 'fotos' }, { icon: DollarSign, title: 'Pagos', desc: 'Gestión de pagos', color: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', view: 'pagos' }].map((item, i) => (
+                  <button key={i} onClick={() => setView(item.view)} style={{...styles.card, background: item.color, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', textAlign: 'center'}}>
+                    <item.icon size={40} />
+                    <h3 style={{ fontSize: '20px', margin: 0 }}>{item.title}</h3>
+                    <p style={{ fontSize: '12px', margin: 0, opacity: 0.9 }}>{item.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {view === 'agregar' && (
+            <div style={{ maxWidth: '640px' }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '32px' }}>➕ Agregar Nuevo Edificio</h2>
+              <div style={{ padding: '32px', borderRadius: '16px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(71, 85, 105, 0.3)' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#cbd5e1', marginBottom: '8px' }}>Dirección</label>
+                  <input type="text" placeholder="Ej: Av. Corrientes 1234" value={formAgregar.direccion} onChange={(e) => setFormAgregar({ ...formAgregar, direccion: e.target.value })} style={styles.input} />
+                </div>
+                <button onClick={guardarEdificio} disabled={loading} style={{...styles.button, opacity: loading ? 0.7 : 1}}>{loading ? 'Guardando...' : '💾 Guardar Dirección'}</button>
+              </div>
+            </div>
+          )}
+
+          {view === 'mostrar' && (
+            <div>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '16px' }}>📋 Todos los Edificios</h2>
+
+              {/* Top filters */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'center' }}>
+                <input placeholder="Filtro por dirección (cliente-side)" value={filterCalle || ''} onChange={(e) => setFilterCalle(e.target.value)} style={{ ...styles.input, maxWidth: '320px' }} />
+                <button onClick={() => { setFilterCalle(''); cargarEdificios() }} style={{ ...styles.button, width: '120px' }}>Reset</button>
+              </div>
+
+              {edificios.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '64px 0', color: '#64748b' }}>
+                  <Building2 size={64} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                  <p style={{ fontSize: '18px' }}>No hay edificios registrados</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+                  {edificios.filter(ed => (filterCalle ? ed.direccion.toLowerCase().includes(filterCalle.toLowerCase()) : true)).map((ed) => (
+                    <div key={ed.id} style={{ padding: '24px', borderRadius: '12px', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(71, 85, 105, 0.3)' }}>
+                      {editingId === ed.id ? (
+                        <div>
+                          <div style={{ marginBottom: '12px' }}>
+                            <input value={editForm.direccion} onChange={(e) => setEditForm({ ...editForm, direccion: e.target.value })} style={{ ...styles.input, marginBottom: '8px' }} />
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={async () => { await guardarCambios(); }} style={{ ...styles.button }}>💾 Guardar</button>
+                            <button onClick={() => { setEditingId(null); setEditForm({ direccion: '' }) }} style={{ ...styles.button, background: 'rgba(71,85,105,0.6)' }}>✖ Cancelar</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <h4 style={{ fontSize: '18px', fontWeight: 'bold', color: '#22d3ee', marginBottom: '16px' }}>🏢 {ed.direccion}</h4>
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                            <button onClick={() => { setEditingId(ed.id); setEditForm({ direccion: ed.direccion }) }} disabled={loading} style={{ ...styles.button, width: '120px' }}>✏️ Modificar</button>
+                            <button onClick={() => eliminarEdificio(ed.id)} disabled={loading} style={{ ...styles.button, ...styles.buttonDanger, marginTop: '0', width: '140px' }}>🗑️ Eliminar</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === 'facturas' && (
+            <div>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '16px' }}>📄 Ver Facturas de Edificios</h2>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
+                <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(71,85,105,0.3)' }}>
+                  <label style={{ fontSize: '12px', color: '#cbd5e1' }}>Seleccionar Edificio</label>
+                  <select style={{ width: '100%', boxSizing: 'border-box', padding: '10px', marginTop: '8px', borderRadius: '8px', background: 'rgba(2,6,23,0.6)', color: '#fff', border: '1px solid rgba(71,85,105,0.3)' }} value={selectedBuildingId || ''} onChange={async (e) => { const id = e.target.value ? parseInt(e.target.value) : null; setSelectedBuildingId(id); setYears([]); setMonths([]); setFacturas([]); setSelectedYearId(null); setSelectedMonthId(null); if (id && window.api && window.api.obtenerYears) { const ys = await window.api.obtenerYears(id); setYears(ys || []) } }}>
+                    <option value="">-- Elija edificio --</option>
+                    {edificios.map(ed => (<option key={ed.id} value={ed.id}>{ed.direccion}</option>))}
+                  </select>
+
+                  <div style={{ marginTop: '16px' }}>
+                    <label style={{ fontSize: '12px', color: '#cbd5e1' }}>Años</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                      {years.length === 0 && <div style={{ color: '#94a3b8' }}>Seleccione un edificio para ver años</div>}
+                      {years.map(y => (<div key={y.id} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <button onClick={async () => { 
+                          if (selectedYearId === y.id) { 
+                            setSelectedYearId(null); setSelectedMonthId(null); setMonths([]); setFacturas([]) 
+                          } else { 
+                            setSelectedYearId(y.id); setSelectedMonthId(null); setFacturas([]); if (window.api && window.api.obtenerMonths) { const ms = await window.api.obtenerMonths(y.id); setMonths(ms || []) } 
+                          } 
+                        }} style={{ padding: '8px 12px', textAlign: 'center', flex: 1, borderRadius: '8px', background: selectedYearId === y.id ? 'linear-gradient(90deg,#06b6d4,#3b82f6)' : 'rgba(2,6,23,0.2)', color: selectedYearId === y.id ? '#001' : '#cbd5e1', border: 'none', cursor: 'pointer' }}>{y.year}</button>
+                        <button onClick={() => eliminarAno(y.id)} style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.6)', color: '#fca5a5', border: 'none', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                      </div>))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <input placeholder="Nuevo año" value={newYearInput} onChange={(e) => setNewYearInput(e.target.value)} style={{ ...styles.input, marginBottom: 0 }} />
+                      <button onClick={agregarAno} style={{ ...styles.button, width: '120px' }}>➕ Año</button>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '16px' }}>
+                    <label style={{ fontSize: '12px', color: '#cbd5e1' }}>Meses</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                      {months.length === 0 && <div style={{ color: '#94a3b8' }}>Seleccione un año</div>}
+                      {months.map(m => (<div key={m.id} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <button onClick={async () => { 
+                          if (selectedMonthId === m.id) { 
+                            setSelectedMonthId(null); setFacturas([]) 
+                          } else { 
+                            setSelectedMonthId(m.id); if (window.api && window.api.obtenerFacturas) { const f = await window.api.obtenerFacturas(m.id); setFacturas(f || []) } 
+                          } 
+                        }} style={{ padding: '8px 12px', borderRadius: '8px', background: selectedMonthId === m.id ? 'linear-gradient(90deg,#06b6d4,#3b82f6)' : 'rgba(2,6,23,0.2)', color: selectedMonthId === m.id ? '#001' : '#cbd5e1', border: 'none', cursor: 'pointer' }}>{m.mes}</button>
+                        <button onClick={async () => { if (confirm(`¿Eliminar mes ${m.mes}?`)) { await window.api.eliminarMonth(m.id); const ms = await window.api.obtenerMonths(selectedYearId); setMonths(ms || []); setSelectedMonthId(null); setFacturas([]); mostrarMensaje('success','Mes eliminado') } }} style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.6)', color: '#fca5a5', border: 'none', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                      </div>))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <select value={newMonthInput} onChange={(e) => setNewMonthInput(e.target.value)} style={{ ...styles.input, marginBottom: 0, flex: 1 }}>
+                        <option value="">Selecciona mes</option>
+                        {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].filter(mesNombre => !months.some(m => m.mes === mesNombre)).map((mesNombre) => (<option key={mesNombre} value={mesNombre}>{mesNombre}</option>))}
+                      </select>
+                      <button onClick={agregarMes} style={{ ...styles.button, width: '120px' }}>➕ Mes</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                    {/* Metadata fields removed per request: Fecha / Monto / Descripción */}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                        <button onClick={async () => {
+                          if (!selectedMonthId) { mostrarMensaje('error', 'Seleccione un mes'); return }
+                          try {
+                            const path = await window.api.seleccionarPDF()
+                            if (!path) return
+                            // We intentionally do not send fecha/monto/descripcion (removed from UI)
+                            const data = { monthId: selectedMonthId, filePath: path, fecha: null, monto: null, descripcion: null }
+                            await window.api.agregarFactura(data)
+                            mostrarMensaje('success', 'Factura agregada')
+                            setInvoiceForm({ fecha: '', monto: '', descripcion: '' })
+                            const f = await window.api.obtenerFacturas(selectedMonthId)
+                            setFacturas(f || [])
+                          } catch (err) { mostrarMensaje('error', 'Error al agregar factura') }
+                        }} style={{ ...styles.button, width: '200px' }}>➕ Agregar Factura</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(2,6,23,0.5)', border: '1px solid rgba(71,85,105,0.2)', minHeight: '240px' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#cbd5e1' }}>Facturas</h3>
+                    {facturas.length === 0 ? <div style={{ color: '#94a3b8' }}>No hay facturas para este mes</div> : (
+                      <div style={{ display: 'grid', gap: '12px' }}>
+                        {facturas.map(f => (
+                          <div key={f.id} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>handleDropOnInvoice(f.id,e)} style={{ padding: '12px', borderRadius: '8px', background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: '700' }}>{(f.file_path || '').replace(/.*[\\/]/, '')}</div>
+                                {/* metadata hidden: fecha / monto / descripcion removed from UI */}
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button onClick={async () => { const res = await window.api.abrirPDF(f.file_path); if (!res.success) mostrarMensaje('error', res.error || 'No se pudo abrir') }} style={{ ...styles.button, width: '140px' }}>📂 Abrir</button>
+                              <button onClick={async () => { await handleReplacePDF(f.id) }} style={{ ...styles.button, width: '200px' }}>🔁 Reemplazar / Modificar</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {editingInvoiceId && (
+                    <div style={{ marginTop: '12px', padding: '12px', borderRadius: '8px', background: 'rgba(2,6,23,0.5)' }}>
+                      <h4 style={{ margin: 0, marginBottom: '8px' }}>Editar factura</h4>
+                      <input placeholder="Fecha" value={editingInvoiceForm.fecha} onChange={(e) => setEditingInvoiceForm({ ...editingInvoiceForm, fecha: e.target.value })} style={styles.input} />
+                      <input placeholder="Monto" value={editingInvoiceForm.monto} onChange={(e) => setEditingInvoiceForm({ ...editingInvoiceForm, monto: e.target.value })} style={styles.input} />
+                      <input placeholder="Descripción" value={editingInvoiceForm.descripcion} onChange={(e) => setEditingInvoiceForm({ ...editingInvoiceForm, descripcion: e.target.value })} style={styles.input} />
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={async () => { try { await window.api.modificarFactura({ id: editingInvoiceId, fecha: editingInvoiceForm.fecha, monto: editingInvoiceForm.monto ? parseFloat(editingInvoiceForm.monto) : null, descripcion: editingInvoiceForm.descripcion }); mostrarMensaje('success','Factura actualizada'); setEditingInvoiceId(null); const fns = await window.api.obtenerFacturas(selectedMonthId); setFacturas(fns || []) } catch (err) { mostrarMensaje('error','Error al actualizar') } }} style={{ ...styles.button }}>💾 Guardar</button>
+                        <button onClick={() => setEditingInvoiceId(null)} style={{ ...styles.button, background: 'rgba(71,85,105,0.6)' }}>✖ Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === 'mantenimiento' && (
+            <div>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '16px' }}>
+                🔧 Gestión de Mantenimiento
+              </h2>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
+                
+                {/* PANEL IZQUIERDO */}
+                <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(71,85,105,0.3)' }}>
+                  
+                  <label style={{ fontSize: '12px', color: '#cbd5e1' }}>
+                    Seleccionar Edificio
+                  </label>
+
+                  <select
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '10px', marginTop: '8px', borderRadius: '8px', background: 'rgba(2,6,23,0.6)', color: '#fff', border: '1px solid rgba(71,85,105,0.3)' }}
+                    value={maintenanceBuildingId || ''}
+                    onChange={async (e) => {
+                      const id = e.target.value ? parseInt(e.target.value) : null
+                      setMaintenanceBuildingId(id)
+                      setMaintenanceNotes([])
+                      if (id) await cargarNotasMantenimiento(id)
+                    }}
+                  >
+                    <option value="">-- Elija edificio --</option>
+                    {edificios.map(ed => (
+                      <option key={ed.id} value={ed.id}>
+                        {ed.direccion}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div style={{ marginTop: '20px' }}>
+                    <input
+                      placeholder="Título"
+                      value={maintenanceForm.titulo}
+                      onChange={(e) =>
+                        setMaintenanceForm({ ...maintenanceForm, titulo: e.target.value })
+                      }
+                      style={styles.input}
+                    />
+
+                    <textarea
+                      placeholder="Texto de la nota"
+                      value={maintenanceForm.texto}
+                      onChange={(e) =>
+                        setMaintenanceForm({ ...maintenanceForm, texto: e.target.value })
+                      }
+                      style={{ ...styles.input, height: '120px', resize: 'none', boxSizing: 'border-box' }}
+                    />
+
+                    <button
+                      onClick={guardarNotaMantenimiento}
+                      style={styles.button}
+                    >
+                      💾 Guardar Nota
+                    </button>
+                  </div>
+                </div>
+
+                {/* PANEL DERECHO */}
+                <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(2,6,23,0.5)', border: '1px solid rgba(71,85,105,0.2)' }}>
+                  <h3 style={{ marginTop: 0, color: '#cbd5e1' }}>
+                    Notas
+                  </h3>
+
+                  {maintenanceNotes.length === 0 ? (
+                    <div style={{ color: '#94a3b8' }}>
+                      No hay notas para este edificio
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      {maintenanceNotes.map(note => (
+                        <div
+                          key={note.id}
+                          style={{ padding: '12px', borderRadius: '8px', background: 'rgba(15,23,42,0.6)' }}
+                        >
+                          <div style={{ fontWeight: 'bold', color: '#22d3ee' }}>
+                            {note.titulo}
+                          </div>
+
+                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                            📅 {formatearFecha(note.updated_at)}
+                          </div>
+
+                          <div style={{ fontSize: '14px', marginTop: '6px', color: '#cbd5e1' }}>
+                            {note.nota}
+                          </div>
+
+                          <button
+                            onClick={() => eliminarNotaMantenimiento(note.id)}
+                            style={{ ...styles.button, ...styles.buttonDanger, marginTop: '10px', width: '160px' }}
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === 'fotos' && (
+            <div>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '16px' }}>
+                🖼️ Fotos de Edificios
+              </h2>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
+                
+                {/* PANEL IZQUIERDO */}
+                <div style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'rgba(30,41,59,0.6)',
+                  border: '1px solid rgba(71,85,105,0.3)'
+                }}>
+
+                  <label style={{ fontSize: '12px', color: '#cbd5e1' }}>
+                    Seleccionar Edificio
+                  </label>
+
+                  <select
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '10px',
+                      marginTop: '8px',
+                      borderRadius: '8px',
+                      background: 'rgba(2,6,23,0.6)',
+                      color: '#fff',
+                      border: '1px solid rgba(71,85,105,0.3)'
+                    }}
+                    value={photoBuildingId || ''}
+                    onChange={async (e) => {
+                      const id = e.target.value ? parseInt(e.target.value) : null
+                      setPhotoBuildingId(id)
+                      setBuildingPhotos([])
+                      if (id) await cargarFotosEdificio(id)
+                    }}
+                  >
+                    <option value="">-- Elija edificio --</option>
+                    {edificios.map(ed => (
+                      <option key={ed.id} value={ed.id}>
+                        {ed.direccion}
+                      </option>
+                    ))}
+                  </select>
+
+                  {photoBuildingId && (
+                    <div style={{ marginTop: '20px' }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setSelectedPhotoFile(e.target.files[0])}
+                        style={{ marginBottom: '12px', color: '#fff' }}
+                      />
+
+                      <button
+                        onClick={subirFotoEdificio}
+                        style={styles.button}
+                      >
+                        💾 Guardar Foto
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* PANEL DERECHO */}
+                <div style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'rgba(2,6,23,0.5)',
+                  border: '1px solid rgba(71,85,105,0.2)'
+                }}>
+                  <h3 style={{ marginTop: 0, color: '#cbd5e1' }}>
+                    Galería
+                  </h3>
+
+                  {!photoBuildingId ? (
+                    <div style={{ color: '#94a3b8' }}>
+                      Seleccione un edificio
+                    </div>
+                  ) : buildingPhotos.length === 0 ? (
+                    <div style={{ color: '#94a3b8' }}>
+                      No hay fotos para este edificio
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, 160px)',
+                      gap: '16px'
+                    }}>
+                      {buildingPhotos.map(photo => (
+                        <div key={photo.id} style={{
+                          background: 'rgba(15,23,42,0.6)',
+                          padding: '8px',
+                          borderRadius: '8px'
+                        }}>
+                          <img
+                            src={photo.preview}
+                            alt=""
+                            onClick={() => setSelectedPhotoForModal(photo)}
+                            style={{
+                              width: '100%',
+                              height: '140px',
+                              objectFit: 'cover',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              transition: 'transform 0.2s ease, opacity 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.transform = 'scale(1.05)'
+                              e.target.style.opacity = '0.85'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.transform = 'scale(1)'
+                              e.target.style.opacity = '1'
+                            }}
+                          />
+
+                          <button
+                            onClick={() => eliminarFotoEdificio(photo.id)}
+                            style={{
+                              ...styles.button,
+                              ...styles.buttonDanger,
+                              marginTop: '8px',
+                              width: '100%'
+                            }}
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === 'pagos' && (
+            <PagosView edificios={edificios} cargarEdificiosConDeuda={cargarEdificiosConDeuda} />
+          )}
+
+          {selectedPhotoForModal && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.85)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+                <img
+                  src={selectedPhotoForModal.preview}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '75vh',
+                    borderRadius: '12px',
+                    objectFit: 'contain',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                  }}
+                  alt="Foto ampliada"
+                />
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setSelectedPhotoForModal(null)}
+                    style={{
+                      padding: '12px 32px',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    ✓ Cerrar
+                  </button>
+                  <button
+                    onClick={() => eliminarFotoEdificio(selectedPhotoForModal.id)}
+                    style={{
+                      padding: '12px 32px',
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+    </div>
+  )
+}

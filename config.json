@@ -1,0 +1,4 @@
+{
+  "dbPath": "./edificios.db",
+  "storageDir": "./facturas_guardadas"
+}

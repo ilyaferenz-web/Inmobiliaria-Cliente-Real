@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuildHub - Demo</title>
+    <style>
+      html,body,#root { height: 100%; margin: 0; }
+      body { background: #0f172a; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    </style>
+    <script type="module" crossorigin src="/assets/index-DZdEu05b.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+
+    <!-- legacy inline JSX (left for reference) -->
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      function GestionEdificios() {
+        const [edificios, setEdificios] = useState([]);
+        const [papelera, setPapelera] = useState([]);
+        const [view, setView] = useState('home');
+        const [errors, setErrors] = useState('');
+        const [success, setSuccess] = useState('');
+        const [loading, setLoading] = useState(false);
+        const [editingId, setEditingId] = useState(null);
+
+        const [formAgregar, setFormAgregar] = useState({ calle: '', numero: '', empleado: '', telefono: '', dni: '', saldo: '' });
+        const [formBuscar, setFormBuscar] = useState({ calle: '', numero: '' });
+        const [resultadoBusca, setResultadoBusca] = useState(null);
+        const [direccionEliminar, setDireccionEliminar] = useState('');
+
+        useEffect(() => { cargarEdificios(); }, []);
+
+        const cargarEdificios = async () => {
+          try {
+            if (window.api && window.api.obtenerEdificios) {
+              const data = await window.api.obtenerEdificios();
+              setEdificios(data);
+            } else {
+              setEdificios([]);
+            }
+          } catch (err) { console.error(err); }
+        };
+
+        const mostrarMensaje = (tipo, msg) => {
+          if (tipo === 'error') { setErrors(msg); setTimeout(() => setErrors(''), 4000); }
+          else { setSuccess(msg); setTimeout(() => setSuccess(''), 4000); }
+        };
+
+        const validarCalle = (calle) => calle.replace(/\s/g, '').match(/^[a-zA-Z]+$/);
+        const validarNumero = (numero) => numero.match(/^\d+$/);
+        const validarNombre = (nombre) => nombre.replace(/\s/g, '').match(/^[a-zA-Z]+$/);
+        const validarTelefono = (telefono) => telefono.match(/^\d{11}$/);
+        const validarDNI = (dni) => dni.match(/^\d{8}$/);
+        const validarSaldo = (saldo) => saldo.match(/^\d+(\.\d{1,2})?$/);
+
+        const guardarEdificio = async () => {
+          setErrors('');
+          const { calle, numero, empleado, telefono, dni, saldo } = formAgregar;
+          if (!calle || !numero || !empleado || !telefono || !dni || !saldo) { mostrarMensaje('error','Todos los campos son obligatorios'); return; }
+          if (!validarCalle(calle)) { mostrarMensaje('error','La calle debe contener solo letras'); return; }
+          if (!validarNumero(numero)) { mostrarMensaje('error','El número debe ser numérico'); return; }
+          if (!validarNombre(empleado)) { mostrarMensaje('error','El nombre debe contener solo letras'); return; }
+          if (!validarTelefono(telefono)) { mostrarMensaje('error','El teléfono debe tener 11 dígitos'); return; }
+          if (!validarDNI(dni)) { mostrarMensaje('error','El DNI debe tener 8 dígitos'); return; }
+          if (!validarSaldo(saldo)) { mostrarMensaje('error','El saldo debe ser numérico'); return; }
+
+          try {
+            setLoading(true);
+            if (window.api && window.api.agregarEdificio) {
+              await window.api.agregarEdificio({ calle: calle.toUpperCase(), numero, empleado, telefono, dni, saldo: parseFloat(saldo) });
+            }
+            mostrarMensaje('success','✓ Edificio agregado correctamente');
+            setFormAgregar({ calle: '', numero: '', empleado: '', telefono: '', dni: '', saldo: '' });
+            await cargarEdificios();
+          } catch (err) { mostrarMensaje('error','Error al guardar: ' + (err.message || err)); }
+          finally { setLoading(false); }
+        };
+
+        const eliminarEdificio = async (id) => {
+          try { setLoading(true);
+            if (window.api && window.api.eliminarEdificio) await window.api.eliminarEdificio(id);
+            mostrarMensaje('success','✓ Edificio movido a papelera');
+            await cargarEdificios();
+          } catch (err) { mostrarMensaje('error','Error al eliminar'); }
+          finally { setLoading(false); }
+        };
+
+        const buscarEdificioFunc = async () => {
+          setErrors('');
+          const { calle, numero } = formBuscar;
+          if (!calle || !numero) { mostrarMensaje('error','Complete todos los campos'); return; }
+          if (!validarCalle(calle)) { mostrarMensaje('error','La calle debe contener solo letras'); return; }
+          if (!validarNumero(numero)) { mostrarMensaje('error','El número debe ser numérico'); return; }
+          try { setLoading(true);
+            if (window.api && window.api.buscarEdificio) {
+              const resultado = await window.api.buscarEdificio(calle.toUpperCase(), numero);
+              if (resultado) { setResultadoBusca(resultado); mostrarMensaje('success','✓ Edificio encontrado'); }
+              else { setResultadoBusca(null); mostrarMensaje('error','No se encontró el edificio'); }
+            }
+          } catch (err) { mostrarMensaje('error','Error en búsqueda'); }
+          finally { setLoading(false); }
+        };
+
+        const styles = { /* trimmed styles reused from original for simplicity */
+          container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', overflow: 'hidden', position: 'relative' },
+          backdrop: { position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 },
+          bgBlob1: { position: 'absolute', top: '80px', left: '40px', width: '288px', height: '288px', background: 'rgba(59, 130, 246, 0.15)', borderRadius: '9999px', filter: 'blur(80px)', animation: 'pulse 8s ease-in-out infinite' },
+          bgBlob2: { position: 'absolute', bottom: '80px', right: '40px', width: '288px', height: '288px', background: 'rgba(6, 182, 212, 0.15)', borderRadius: '9999px', filter: 'blur(80px)', animation: 'pulse 8s ease-in-out 1s infinite' },
+          content: { position: 'relative', zIndex: 10 },
+          header: { borderBottom: '1px solid rgba(71, 85, 105, 0.3)', backdropFilter: 'blur(10px)', background: 'rgba(15, 23, 42, 0.8)', padding: '24px 0', position: 'sticky', top: 0, zIndex: 50 },
+          headerContent: { maxWidth: '1280px', margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+          logo: { display: 'flex', alignItems: 'center', gap: '12px' },
+          logoBg: { padding: '12px', background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)', borderRadius: '12px' },
+          notification: { position: 'fixed', top: '100px', right: '24px', padding: '16px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', backdropFilter: 'blur(10px)', border: '1px solid', zIndex: 50, animation: 'slideIn 0.3s ease-out' },
+          main: { maxWidth: '1280px', margin: '0 auto', padding: '48px 24px' },
+          grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '48px' },
+          card: { position: 'relative', padding: '32px', borderRadius: '16px', background: 'linear-gradient(135deg, #1e40af 0%, #0369a1 100%)', cursor: 'pointer', transition: 'all 0.3s ease', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '18px', overflow: 'hidden' },
+          input: { width: '100%', padding: '12px 16px', borderRadius: '8px', background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(71, 85, 105, 0.5)', color: '#fff', fontSize: '14px', marginBottom: '16px', transition: 'border-color 0.2s', fontFamily: 'inherit' },
+          button: { width: '100%', padding: '16px', borderRadius: '8px', background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)', color: 'white', border: 'none', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', marginBottom: '12px' },
+          buttonDanger: { background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }
+        };
+
+        return (
+          <div style={styles.container}>
+            <div style={styles.backdrop}>
+              <div style={styles.bgBlob1}></div>
+              <div style={styles.bgBlob2}></div>
+            </div>
+            <div style={styles.content}>
+              <header style={styles.header}>
+                <div style={styles.headerContent}>
+                  <div style={styles.logo}>
+                    <div style={styles.logoBg}><span style={{fontSize:28}}>🏢</span></div>
+                    <div>
+                      <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0 0 4px 0', background: 'linear-gradient(to right, #60a5fa, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BuildHub</h1>
+                      <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>Gestión de Edificios Premium</p>
+                    </div>
+                  </div>
+                  {view !== 'home' && (
+                    <button onClick={() => setView('home')} style={{ padding: '8px 24px', borderRadius: '8px', background: 'rgba(71, 85, 105, 0.5)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: '500' }}>← Volver</button>
+                  )}
+                </div>
+              </header>
+
+              {errors && (<div style={{...styles.notification, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.5)', color: '#fca5a5'}}><span>⚠️</span><span>{errors}</span></div>)}
+              {success && (<div style={{...styles.notification, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.5)', color: '#86efac'}}><span>✅</span><span>{success}</span></div>)}
+
+              <main style={styles.main}>
+                {view === 'home' && (
+                  <div>
+                    <h2 style={{ fontSize: '20px', marginBottom: '32px', color: '#cbd5e1' }}>¿Qué deseas hacer hoy?</h2>
+                    <div style={styles.grid}>
+                      {[
+                        { emoji: '➕', title: 'Agregar', desc: 'Nuevo edificio', view: 'agregar' },
+                        { emoji: '👁️', title: 'Ver Todos', desc: 'Edificios registrados', view: 'mostrar' },
+                        { emoji: '🔎', title: 'Buscar', desc: 'Edificio específico', view: 'buscar' },
+                        { emoji: '🗑️', title: 'Eliminar', desc: 'Dar de baja', view: 'eliminar' }
+                      ].map((item, i) => (
+                        <button key={i} onClick={() => setView(item.view)} style={{...styles.card, background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', textAlign: 'center'}}>
+                          <div style={{fontSize:40}}>{item.emoji}</div>
+                          <h3 style={{ fontSize: '20px', margin: 0 }}>{item.title}</h3>
+                          <p style={{ fontSize: '12px', margin: 0, opacity: 0.9 }}>{item.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {view === 'agregar' && (
+                  <div style={{ maxWidth: '640px' }}>
+                    <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '32px' }}>➕ Agregar Nuevo Edificio</h2>
+                    <div style={{ padding: '32px', borderRadius: '16px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(71, 85, 105, 0.3)' }}>
+                      {[{ label: 'Calle', key: 'calle', placeholder: 'Ej: Av. Corrientes' },{ label: 'Número', key: 'numero', placeholder: 'Ej: 1234' },{ label: 'Empleado', key: 'empleado', placeholder: 'Ej: Juan García' },{ label: 'Teléfono', key: 'telefono', placeholder: 'Ej: 11 2345 6789' },{ label: 'DNI', key: 'dni', placeholder: 'Ej: 12345678' },{ label: 'Saldo', key: 'saldo', placeholder: 'Ej: 5000.50' }].map(({ label, key, placeholder }) => (
+                        <div key={key}>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#cbd5e1', marginBottom: '8px' }}>{label}</label>
+                          <input type="text" placeholder={placeholder} value={formAgregar[key]} onChange={(e) => setFormAgregar({ ...formAgregar, [key]: e.target.value })} style={styles.input} />
+                        </div>
+                      ))}
+                      <button onClick={guardarEdificio} disabled={loading} style={{...styles.button, opacity: loading ? 0.7 : 1}}>{loading ? 'Guardando...' : '💾 Guardar Edificio'}</button>
+                    </div>
+                  </div>
+                )}
+
+                {view === 'mostrar' && (
+                  <div>
+                    <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '32px' }}>📋 Todos los Edificios</h2>
+                    {edificios.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '64px 0', color: '#64748b' }}>
+                        <div style={{ fontSize: 64, margin: '0 auto 16px', opacity: 0.5 }}>🏢</div>
+                        <p style={{ fontSize: '18px' }}>No hay edificios registrados</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+                        {edificios.map((ed) => (
+                          <div key={ed.id} style={{ padding: '24px', borderRadius: '12px', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(71, 85, 105, 0.3)' }}>
+                            <h4 style={{ fontSize: '18px', fontWeight: 'bold', color: '#22d3ee', marginBottom: '16px' }}>🏢 {ed.calle} {ed.numero}</h4>
+                            <div style={{ fontSize: '14px', lineHeight: '1.8', color: '#cbd5e1' }}>
+                              <div><span style={{ color: '#94a3b8' }}>Empleado:</span> {ed.empleado}</div>
+                              <div><span style={{ color: '#94a3b8' }}>Teléfono:</span> {ed.telefono}</div>
+                              <div><span style={{ color: '#94a3b8' }}>DNI:</span> {ed.dni}</div>
+                              <div><span style={{ color: '#94a3b8' }}>Saldo:</span> ${ed.saldo}</div>
+                            </div>
+                            <button onClick={() => eliminarEdificio(ed.id)} disabled={loading} style={{...styles.button, ...styles.buttonDanger, marginTop: '16px'}}>🗑️ Eliminar</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {view === 'buscar' && (
+                  <div style={{ maxWidth: '640px' }}>
+                    <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '32px' }}>🔍 Buscar Edificio</h2>
+                    <div style={{ padding: '32px', borderRadius: '16px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(71, 85, 105, 0.3)' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#cbd5e1', marginBottom: '8px' }}>Calle</label>
+                      <input type="text" placeholder="Ingrese la calle" value={formBuscar.calle} onChange={(e) => setFormBuscar({ ...formBuscar, calle: e.target.value })} style={styles.input} />
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#cbd5e1', marginBottom: '8px' }}>Número</label>
+                      <input type="text" placeholder="Ingrese el número" value={formBuscar.numero} onChange={(e) => setFormBuscar({ ...formBuscar, numero: e.target.value })} style={styles.input} />
+                      <button onClick={buscarEdificioFunc} disabled={loading} style={{...styles.button, opacity: loading ? 0.7 : 1}}>{loading ? 'Buscando...' : '🔎 Buscar'}</button>
+                      {resultadoBusca && (
+                        <div style={{ marginTop: '24px', padding: '24px', borderRadius: '12px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                          <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#86efac', marginBottom: '16px' }}>✓ Resultado</h4>
+                          <div style={{ fontSize: '14px', lineHeight: '1.8', color: '#cbd5e1' }}>
+                            <div><span style={{ color: '#94a3b8' }}>Edificio:</span> {resultadoBusca.calle} {resultadoBusca.numero}</div>
+                            <div><span style={{ color: '#94a3b8' }}>Empleado:</span> {resultadoBusca.empleado}</div>
+                            <div><span style={{ color: '#94a3b8' }}>Teléfono:</span> {resultadoBusca.telefono}</div>
+                            <div><span style={{ color: '#94a3b8' }}>DNI:</span> {resultadoBusca.dni}</div>
+                            <div><span style={{ color: '#94a3b8' }}>Saldo:</span> ${resultadoBusca.saldo}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {view === 'eliminar' && (
+                  <div style={{ maxWidth: '640px' }}>
+                    <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '32px' }}>❌ Dar de Baja Edificio</h2>
+                    <div style={{ padding: '32px', borderRadius: '16px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(71, 85, 105, 0.3)' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#cbd5e1', marginBottom: '8px' }}>ID del Edificio</label>
+                      <input type="text" placeholder="Ingrese el ID" value={direccionEliminar} onChange={(e) => setDireccionEliminar(e.target.value)} style={styles.input} />
+                      <button onClick={() => { if (direccionEliminar) eliminarEdificio(parseInt(direccionEliminar)); }} disabled={loading} style={{...styles.button, ...styles.buttonDanger, opacity: loading ? 0.7 : 1}}>{loading ? 'Eliminando...' : '🗑️ Mover a Papelera'}</button>
+                    </div>
+                  </div>
+                )}
+              </main>
+            </div>
+
+            <style>
+              @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+              @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+              input:focus { outline: none; border-color: #3b82f6 !important; }
+            </style>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(GestionEdificios));
+    </script>
+  </body>
+</html>

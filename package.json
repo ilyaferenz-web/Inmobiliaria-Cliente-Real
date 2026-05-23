@@ -1,0 +1,37 @@
+{
+  "name": "programacion",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "dev:electron": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron . --dev\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "electron": "^39.2.5",
+    "electron-is-dev": "^3.0.1",
+    "lucide-react": "^0.555.0",
+    "node-qpdf": "^1.0.3",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.1",
+    "pdf2json": "^4.0.2",
+    "pdfjs-dist": "^3.11.174",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "vite": "^7.2.6",
+    "wait-on": "^9.0.3"
+  }
+}
